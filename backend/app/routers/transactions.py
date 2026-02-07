@@ -195,6 +195,42 @@ async def list_due_dates(
     }
 
 
+@router.patch("/due-dates/{due_date_id}")
+async def update_due_date_status(
+    due_date_id: int,
+    status: str = Body(..., embed=True),
+):
+    """
+    Update the status of a due date.
+    If status is 'pagado', automatically creates a transaction.
+    """
+    supabase = get_supabase_service()
+    
+    # Update status
+    result = await supabase.update_due_date_status(str(due_date_id), status)
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="Due date not found")
+        
+    # If marked as paid, create a transaction
+    if status == "pagado":
+        # Create transaction based on due date info
+        transaction = TransactionCreate(
+            amount=result.get("amount"),
+            description=result.get("description"),
+            category=result.get("category"),
+            transaction_type=result.get("type", "gasto"), # Assuming due dates have 'type' or default to gasto
+            date=date.today(),
+            tag=result.get("tag"),
+            account_source="Banco", # Default source? Or maybe add to due_date model
+            is_recurring=True,
+        )
+        
+        await supabase.create_transaction(transaction)
+        
+    return result
+
+
 @router.get("/savings-goals")
 async def list_savings_goals(
     include_completed: bool = Query(default=False),

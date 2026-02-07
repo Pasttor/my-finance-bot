@@ -70,6 +70,9 @@ export const getDueDates = (params = {}) => {
   return api.get(`/due-dates?${searchParams.toString()}`);
 };
 
+export const updateDueDateStatus = (id, status) =>
+  api.patch(`/due-dates/${id}`, { status });
+
 export const getSavingsGoals = (includeCompleted = false) =>
   api.get(`/savings-goals?include_completed=${includeCompleted}`);
 

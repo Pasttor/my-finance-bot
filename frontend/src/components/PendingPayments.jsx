@@ -1,23 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CreditCard, Calendar, ChevronDown } from 'lucide-react';
+import { CreditCard, Calendar, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { getDueDates, updateDueDateStatus } from '../services/api';
 
 /**
  * Pending Payments Panel Component
  * Displays pending payments similar to Recurring Payments
  */
-export default function PendingPayments({ loading }) {
-  // Test data as requested
-  const [payments, setPayments] = useState([
-    {
-      id: 'test-1',
-      name: 'Pago Web Asces',
-      amount: 3750.00,
-      dueDate: '2026-02-28',
-      category: 'Ingresos',
-      status: 'pendiente'
-    }
-  ]);
+export default function PendingPayments({ loading: parentLoading }) {
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [openDropdown, setOpenDropdown] = useState(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
@@ -26,7 +19,37 @@ export default function PendingPayments({ loading }) {
   // Status configuration
   const statusConfig = {
     pendiente: { label: 'Pendiente', color: '#FCD34D', bg: 'rgba(252, 211, 77, 0.2)' },
-    pagado: { label: 'Pagado', color: '#11FB1C', bg: 'rgba(17, 251, 28, 0.2)' }
+    pagado: { label: 'Pagado', color: '#11FB1C', bg: 'rgba(17, 251, 28, 0.2)' },
+    vencido: { label: 'Vencido', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.2)' }
+  };
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const response = await getDueDates({ status: 'pendiente' }); // Fetch pending by default? Or all?
+      // Check if response has data property (standard axios response)
+      const data = response.data.data || [];
+      
+      const formatted = data.map(item => ({
+        id: item.id,
+        name: item.description || 'Sin nombre',
+        amount: parseFloat(item.amount),
+        dueDate: item.due_date,
+        category: item.category || 'Otros',
+        status: item.status || 'pendiente'
+      }));
+      
+      setPayments(formatted);
+    } catch (err) {
+      console.error('Error fetching pending payments:', err);
+      setError('Error al cargar pagos');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Close dropdown when clicking outside
@@ -37,11 +60,9 @@ export default function PendingPayments({ loading }) {
       }
     };
     document.addEventListener('click', handleClickOutside);
-    window.addEventListener('resize', () => setOpenDropdown(null));
     window.addEventListener('scroll', () => setOpenDropdown(null), true);
     return () => {
       document.removeEventListener('click', handleClickOutside);
-      window.removeEventListener('resize', () => setOpenDropdown(null));
       window.removeEventListener('scroll', () => setOpenDropdown(null), true);
     };
   }, []);
@@ -61,14 +82,27 @@ export default function PendingPayments({ loading }) {
     setOpenDropdown(id);
   };
 
-  const updateStatus = (id, newStatus) => {
+  const updateStatus = async (id, newStatus) => {
     setOpenDropdown(null);
-    setPayments(prev => prev.map(p => 
-      p.id === id ? { ...p, status: newStatus } : p
-    ));
+    try {
+      // Optimistic update
+      setPayments(prev => prev.map(p => 
+        p.id === id ? { ...p, status: newStatus } : p
+      ));
+
+      await updateDueDateStatus(id, newStatus);
+      
+      // Refresh to ensure sync (optional)
+      // fetchPayments(); 
+    } catch (err) {
+      console.error('Error updating status:', err);
+      // Revert on error
+      fetchPayments();
+      // Show error notification?
+    }
   };
 
-  if (loading) {
+  if (loading || parentLoading) {
     return (
       <div className="glass-card p-6 rounded-2xl animate-pulse h-full">
         <div className="h-8 bg-white/10 rounded w-48 mb-6"></div>
