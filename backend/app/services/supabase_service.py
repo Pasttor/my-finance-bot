@@ -144,32 +144,52 @@ class SupabaseService:
     async def search_transaction(self, search_term: str, date_filter: Optional[date] = None) -> list[dict]:
         """Search for a transaction by description or amount."""
         from urllib.parse import quote
-        
-        filters = []
-        
-        # Determine if search term is a number (for amount) or text (for description)
-        is_amount = False
-        try:
-            float(search_term)
-            is_amount = True
-        except ValueError:
-            pass
+        import unicodedata
+        import sys
+
+        def normalize_text(text: str) -> str:
+            return "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
+
+        print(f"[DEBUG] Searching for '{search_term}' (Date: {date_filter})", file=sys.stderr)
+
+        # Helper to execute search
+        def build_query(term):
+            filters = []
+            is_amount = False
+            try:
+                float(term)
+                is_amount = True
+            except ValueError:
+                pass
+                
+            if is_amount:
+                filters.append(f"amount=eq.{term}")
+            else:
+                encoded_term = quote(term)
+                filters.append(f"description=ilike.*{encoded_term}*")
+                
+            if date_filter:
+                filters.append(f"date=eq.{date_filter}")
             
-        if is_amount:
-            filters.append(f"amount=eq.{search_term}")
-        else:
-            # Encode the search term to handle spaces and special chars
-            encoded_term = quote(search_term)
-            filters.append(f"description=ilike.*{encoded_term}*")
-            
-        if date_filter:
-            filters.append(f"date=eq.{date_filter}")
-            
-        query = "&".join(filters)
-        # Order by creation date descending to get the most recent one first
+            return "&".join(filters)
+
+        # 1. Try original search
+        query = build_query(search_term)
         endpoint = f"transactions?{query}&order=created_at.desc&limit=5"
+        print(f"[DEBUG] Query 1: {endpoint}", file=sys.stderr)
         
-        return self._request("GET", endpoint) or []
+        results = self._request("GET", endpoint)
+        
+        # 2. If empty and term has accents, try normalized search
+        if not results:
+            normalized = normalize_text(search_term)
+            if normalized != search_term:
+                print(f"[DEBUG] Original search failed. Trying normalized: '{normalized}'", file=sys.stderr)
+                query = build_query(normalized)
+                endpoint = f"transactions?{query}&order=created_at.desc&limit=5"
+                results = self._request("GET", endpoint)
+
+        return results or []
 
     async def delete_transaction(self, transaction_id: int):
         """Delete a transaction by ID."""
