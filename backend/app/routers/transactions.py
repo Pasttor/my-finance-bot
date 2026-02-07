@@ -87,30 +87,21 @@ async def update_transaction(transaction_id: int, updates: dict = Body(...)):
     # Check for payment_status updates explicitly
     if 'payment_status' in updates:
         status = updates['payment_status']
-        # Use RPC for reliable status updates
-        try:
-            result = supabase.rpc('update_payment_status', {
-                'p_id': transaction_id, 
-                'p_status': status
-            })
+        
+        # If marking as Paid, update the date to today so it appears in recent activity
+        if status == 'pagado':
+            updates['date'] = date.today().isoformat()
+            # Also update in the RPC params if we use RPC, but simple PATCH is easier if we mix fields
             
+        # Use RPC for reliable status updates if available, otherwise PATCH
+        try:
+            # We prefer standard PATCH now to handle multiple field updates (status + date)
+            # merging logic
+            result = await supabase.update_transaction(transaction_id, TransactionUpdate(**updates))
             if result:
-                # If there are other updates besides payment_status, apply them via PATCH?
-                # For now let's assume status update is the main action or handle others if needed.
-                updates_copy = updates.copy()
-                del updates_copy['payment_status']
-                
-                if updates_copy:
-                     # Attempt to patch the rest
-                     try:
-                        supabase._request("PATCH", f"transactions?id=eq.{transaction_id}", json=updates_copy)
-                     except:
-                        pass # Ignore patch errors for now if RPC succeeded
-                
                 return result
         except Exception as e:
-            print(f"RPC Error: {e}")
-            # Fallback to standard flow
+            print(f"Update Error: {e}")
             pass
 
     # Fallback to standard PATCH mechanism if RPC wasn't used or failed

@@ -72,7 +72,9 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
     setOpenDropdown(id);
   };
 
-  // Update payment status (Optimistic UI + Direct Supabase)
+import { updateTransactionStatus } from '../services/api';
+
+  // Update payment status (Optimistic UI + API)
   const updateStatus = async (paymentId, newStatus) => {
     // 1. Immediately close dropdown
     setOpenDropdown(null);
@@ -86,13 +88,8 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
     );
 
     try {
-      // Direct call to Supabase to bypass backend network issues
-      const { error } = await supabase
-          .from('transactions')
-          .update({ payment_status: newStatus })
-          .eq('id', paymentId);
-
-      if (error) throw error;
+      // Use backend API to ensure date update logic runs
+      await updateTransactionStatus(paymentId, { payment_status: newStatus });
       
       // Refresh data after small delay to ensure propagation
       if (onStatusChange) {
@@ -102,7 +99,7 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
       console.error('Error updating status:', error);
       // Rollback on error
       setRecurringPayments(previousPayments);
-      alert('Error al actualizar: Verifique su conexión');
+      // alert('Error al actualizar: Verifique su conexión');
     }
   };
 

@@ -76,4 +76,7 @@ export const updateDueDateStatus = (id, status) =>
 export const getSavingsGoals = (includeCompleted = false) =>
   api.get(`/savings-goals?include_completed=${includeCompleted}`);
 
+export const updateTransactionStatus = (id, updates) =>
+  api.patch(`/transactions/${id}`, updates);
+
 export default api;
