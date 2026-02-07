@@ -105,7 +105,7 @@ async def _process_text_message(
     message: str,
     message_id: Optional[int] = None,
 ) -> str:
-    """Process a text message and create a transaction."""
+    """Process a text message and create/update/delete a transaction."""
     supabase = get_supabase_service()
     gemini = get_gemini_service()
     twilio = get_twilio_service()
@@ -113,6 +113,14 @@ async def _process_text_message(
     # Parse the message with Gemini
     parsed = await gemini.parse_text_transaction(message)
     
+    # Dispatch based on operation
+    if parsed.operation == "delete":
+        return await _process_delete_request(parsed)
+        
+    if parsed.operation == "update":
+        return await _process_update_request(parsed)
+    
+    # Default: Create
     if parsed.amount <= 0:
         return twilio.format_error_message("parse")
     
@@ -143,6 +151,88 @@ async def _process_text_message(
         )
     
     return twilio.format_error_message("general")
+
+
+async def _process_delete_request(parsed) -> str:
+    """Handle request to delete a transaction."""
+    supabase = get_supabase_service()
+    
+    if not parsed.search_term:
+        return "❌ Para eliminar necesito que me digas qué buscar (ej: 'borra el Uber')."
+        
+    # Search for the transaction
+    matches = await supabase.search_transaction(
+        search_term=parsed.search_term,
+        date_filter=parsed.transaction_date  # Only if explicitly mentioned
+    )
+    
+    if not matches:
+        return f"🔍 No encontré ninguna transacción que coincida con '{parsed.search_term}'."
+        
+    # Delete the most recent match
+    target = matches[0]
+    await supabase.delete_transaction(target["id"])
+    
+    amount = float(target.get("amount", 0))
+    desc = target.get("description", "Sin descripción")
+    date_str = target.get("date", "")
+    
+    return f"🗑️ Eliminado: {desc} (${amount:,.2f}) del {date_str}."
+
+
+async def _process_update_request(parsed) -> str:
+    """Handle request to update a specific transaction."""
+    supabase = get_supabase_service()
+    
+    if not parsed.search_term:
+        return "❌ Para corregir necesito que me digas qué buscar (ej: 'cambia el Uber')."
+        
+    # Search for the transaction
+    matches = await supabase.search_transaction(
+        search_term=parsed.search_term,
+        date_filter=parsed.transaction_date
+    )
+    
+    if not matches:
+        return f"🔍 No encontré ninguna transacción que coincida con '{parsed.search_term}'."
+        
+    target = matches[0]
+    update_data = {}
+    
+    # Map correction fields
+    field = parsed.correction_field
+    value = parsed.correction_value
+    
+    if not field or not value:
+        return "❌ No entendí qué quieres cambiar. Intenta: 'Cambia el monto a 500'."
+        
+    if field in ["amount", "monto", "precio", "valor"]:
+        try:
+            update_data["amount"] = float(value)
+        except:
+            return "❌ El nuevo monto debe ser un número."
+            
+    elif field in ["description", "descripción", "concepto", "nombre"]:
+        update_data["description"] = value
+        
+    elif field in ["category", "categoría", "rubro"]:
+        update_data["category"] = value
+        
+    elif field in ["date", "fecha", "día"]:
+        # Gemini usually returns ISO date in correction_value if it's a date
+        update_data["date"] = value
+        
+    if not update_data:
+        return f"❌ No sé cómo actualizar el campo '{field}'."
+        
+    # Perform update
+    # We use raw update because we have a dict
+    updated = await supabase.update_transaction_raw(target["id"], update_data)
+    
+    if updated:
+        return f"✅ Actualizado: {updated.get('description')} - ${float(updated.get('amount', 0)):,.2f} ({updated.get('date')})."
+    
+    return "❌ Hubo un error al actualizar la transacción."
 
 
 async def _process_image_message(

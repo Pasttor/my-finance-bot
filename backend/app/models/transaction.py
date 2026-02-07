@@ -96,19 +96,26 @@ class TransactionResponse(TransactionBase):
 
 class GeminiParsedTransaction(BaseModel):
     """Model for Gemini AI parsed transaction data."""
-    amount: Decimal
-    description: str
-    category: str
+    amount: Decimal = Field(default=Decimal("0"))
+    description: str = Field(default="")
+    category: str = Field(default="Otros")
     transaction_type: TransactionType = Field(default=TransactionType.GASTO, alias="type")
     transaction_date: Optional[date_type] = Field(None, alias="date")
     tag: Optional[ProjectTag] = None
     account_source: Optional[str] = "Efectivo"
     is_recurring: bool = False
     
-    # For corrections
+    # Operation fields
+    operation: str = Field(default="create", description="create, delete, update")
+    
+    # For corrections/updates/deletions
     is_correction: bool = False
     correction_field: Optional[str] = None
     correction_value: Optional[str] = None
+    
+    # Search criteria for delete/update
+    search_term: Optional[str] = None
+    original_search_term: Optional[str] = None
 
     model_config = {"populate_by_name": True}
 

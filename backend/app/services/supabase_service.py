@@ -141,6 +141,32 @@ class SupabaseService:
             print(f"[DEBUG SERVICE RAW] Error: {e}", file=sys.stderr)
             raise
 
+    async def search_transaction(self, search_term: str, date_filter: Optional[date] = None) -> list[dict]:
+        """Search for a transaction by description or amount."""
+        filters = []
+        
+        # Determine if search term is a number (for amount) or text (for description)
+        is_amount = False
+        try:
+            float(search_term)
+            is_amount = True
+        except ValueError:
+            pass
+            
+        if is_amount:
+            filters.append(f"amount=eq.{search_term}")
+        else:
+            filters.append(f"description=ilike.*{search_term}*")
+            
+        if date_filter:
+            filters.append(f"date=eq.{date_filter}")
+            
+        query = "&".join(filters)
+        # Order by creation date descending to get the most recent one first
+        endpoint = f"transactions?{query}&order=created_at.desc&limit=5"
+        
+        return self._request("GET", endpoint) or []
+
     async def delete_transaction(self, transaction_id: int):
         """Delete a transaction by ID."""
         self._request( # Changed from await self._request to self._request to match other methods

@@ -18,47 +18,39 @@ from app.models.transaction import GeminiParsedTransaction, TransactionType, Pro
 
 
 # System prompts for Gemini
-TEXT_PARSING_PROMPT = """Eres un asistente financiero experto. Tu tarea es analizar mensajes de usuarios sobre gastos o ingresos y extraer la información estructurada.
+TEXT_PARSING_PROMPT = """Eres un asistente financiero experto. Tu tarea es analizar mensajes de usuarios y extraer la intención (CREAR, BORRAR, ACTUALIZAR) y los datos estructurados.
 
-REGLAS:
-1. Si el mensaje menciona un gasto, el tipo es "gasto"
-2. Si el mensaje menciona un ingreso/cobro/pago recibido, el tipo es "ingreso"
-3. Si menciona inversión o ahorro, el tipo es "inversion"
-4. Si menciona suscripción o pago mensual recurrente, el tipo es "suscripcion"
-5. Busca hashtags como #Asces, #LabCasa, #Personal para la etiqueta
-6. Si no hay hashtag, usa null para tag
-7. Si no hay fecha explícita, usa la fecha de hoy
-8. Identifica la categoría más apropiada entre: Alimentación, Transporte, Entretenimiento, Servicios, Compras, Salud, Educación, Hogar, Suscripciones, Otros
-9. Identifica el método de pago si se menciona: Efectivo, Tarjeta, Banco, Transferencia
+TIPO DE OPERACIÓN ("operation"):
+1. "create": Nuevo gasto/ingreso (ej: "Gasté 500 en Uber", "Cobré 2000").
+2. "delete": Eliminar algo (ej: "Borra el Uber de ayer", "Elimina el gasto de 500", "Quita la suscripción de Netflix").
+3. "update": Corregir algo ESPECÍFICO (ej: "El gasto de Uber no era 500, era 600", "Cambia la fecha de Walmart a ayer").
+
+REGLAS PARA "create":
+- Extrae amount, description, category, type, date, tag, account_source.
+- Si no hay fecha, usa la de hoy.
+
+REGLAS PARA "delete" / "update":
+- Extrae "search_term" para encontrar la transacción (ej: "Uber", "Netflix", "500").
+- Extrae "date" si se menciona una fecha específica para la búsqueda (ej: "de ayer").
+- Para "update", extrae "correction_field" (amount, description, date, category) y "correction_value".
 
 FORMATO DE SALIDA (JSON estricto):
 {
-  "amount": número sin símbolos,
-  "description": "descripción breve del gasto/ingreso",
-  "category": "categoría identificada",
+  "operation": "create|delete|update",
+  "amount": número (para create) o 0,
+  "description": "descripción" (para create) o "",
+  "category": "categoría" (para create) o "Otros",
   "type": "gasto|ingreso|inversion|suscripcion",
-  "date": "YYYY-MM-DD" o null si no se especifica,
+  "date": "YYYY-MM-DD" o null,
   "tag": "#Asces|#LabCasa|#Personal" o null,
-  "account_source": "Efectivo|Tarjeta|Banco|Transferencia",
+  "account_source": "Efectivo|Tarjeta...",
   "is_recurring": true/false,
-  "is_correction": false
+  "search_term": "término de búsqueda" o null,
+  "correction_field": "campo a corregir" o null,
+  "correction_value": "nuevo valor" o null
 }
 
-IMPORTANTE: Si el mensaje es una CORRECCIÓN (ej: "cámbialo a 450", "no fue 500 sino 600", "corrígelo", "mal, eran 200"):
-{
-  "is_correction": true,
-  "correction_field": "amount|description|category",
-  "correction_value": "el nuevo valor",
-  "amount": 0,
-  "description": "",
-  "category": "",
-  "type": "gasto",
-  "tag": null,
-  "account_source": "Efectivo",
-  "is_recurring": false
-}
-
-Responde SOLO con el JSON, sin texto adicional ni markdown."""
+Responde SOLO con el JSON."""
 
 RECEIPT_OCR_PROMPT = """Analiza esta imagen de un ticket o recibo de compra. Extrae la siguiente información:
 
