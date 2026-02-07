@@ -26,6 +26,7 @@ async def list_transactions(
 ):
     """
     Get a list of transactions with optional filters.
+    Sorted by date (descending), then created_at (descending).
     """
     supabase = get_supabase_service()
     

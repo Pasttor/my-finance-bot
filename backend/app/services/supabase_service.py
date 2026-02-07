@@ -175,7 +175,8 @@ class SupabaseService:
 
         # 1. Try original search
         query = build_query(search_term)
-        endpoint = f"transactions?{query}&order=created_at.desc&limit=5"
+        # Order by date descending (primary) then created_at (secondary)
+        endpoint = f"transactions?{query}&order=date.desc,created_at.desc&limit=5"
         print(f"[DEBUG] Query 1: {endpoint}", file=sys.stderr)
         
         results = self._request("GET", endpoint)
@@ -186,7 +187,7 @@ class SupabaseService:
             if normalized != search_term:
                 print(f"[DEBUG] Original search failed. Trying normalized: '{normalized}'", file=sys.stderr)
                 query = build_query(normalized)
-                endpoint = f"transactions?{query}&order=created_at.desc&limit=5"
+                endpoint = f"transactions?{query}&order=date.desc,created_at.desc&limit=5"
                 results = self._request("GET", endpoint)
 
         return results or []
@@ -228,7 +229,8 @@ class SupabaseService:
             filters.append(f"type=eq.{transaction_type}")
         
         query = "&".join(filters) if filters else ""
-        endpoint = f"transactions?{query}&order=created_at.desc&limit={limit}&offset={offset}"
+        # Order by date descending (primary) to show updated/effective dates first, then created_at (secondary)
+        endpoint = f"transactions?{query}&order=date.desc,created_at.desc&limit={limit}&offset={offset}"
         
         return self._request("GET", endpoint) or []
     
