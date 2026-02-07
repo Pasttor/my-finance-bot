@@ -123,8 +123,9 @@ class GeminiService:
             if not data.get("tag"):
                 data["tag"] = self._extract_tag_from_message(message)
             
-            # Set today's date if not provided
-            if not data.get("date"):
+            # Set today's date if not provided, BUT only for 'create' operation
+            # For delete/update, we want to allow searching without a date filter
+            if not data.get("date") and data.get("operation") == "create":
                 data["date"] = self.today
             
             # Validate and convert type
