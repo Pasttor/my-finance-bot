@@ -143,6 +143,8 @@ class SupabaseService:
 
     async def search_transaction(self, search_term: str, date_filter: Optional[date] = None) -> list[dict]:
         """Search for a transaction by description or amount."""
+        from urllib.parse import quote
+        
         filters = []
         
         # Determine if search term is a number (for amount) or text (for description)
@@ -156,7 +158,9 @@ class SupabaseService:
         if is_amount:
             filters.append(f"amount=eq.{search_term}")
         else:
-            filters.append(f"description=ilike.*{search_term}*")
+            # Encode the search term to handle spaces and special chars
+            encoded_term = quote(search_term)
+            filters.append(f"description=ilike.*{encoded_term}*")
             
         if date_filter:
             filters.append(f"date=eq.{date_filter}")
