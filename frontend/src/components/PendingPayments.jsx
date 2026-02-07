@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CreditCard, Calendar, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { CreditCard, ChevronDown } from 'lucide-react';
 import { getDueDates, updateDueDateStatus } from '../services/api';
 
 /**

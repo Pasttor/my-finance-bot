@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '../services/supabase';
 import { Calendar, CreditCard, Wifi, Dumbbell, Monitor, Sparkles, ShoppingBag, ChevronDown } from 'lucide-react';
-import axios from 'axios';
+import { updateTransactionStatus } from '../services/api';
 
 /**
  * Recurring Payments Panel Component
@@ -71,8 +70,6 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
     });
     setOpenDropdown(id);
   };
-
-import { updateTransactionStatus } from '../services/api';
 
   // Update payment status (Optimistic UI + API)
   const updateStatus = async (paymentId, newStatus) => {
