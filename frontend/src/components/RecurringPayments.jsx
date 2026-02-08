@@ -87,10 +87,15 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
     try {
       // Use backend API to ensure date update log runs
       // Send local date to avoid server timezone issues (UTC vs Local)
-      const localDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format
+      // Use ISO string to ensure YYYY-MM-DD format regardless of locale
+      const localDate = new Date();
+      // Adjust for timezone offset to get "Local" ISO date
+      const offset = localDate.getTimezoneOffset() * 60000;
+      const localISO = new Date(localDate.getTime() - offset).toISOString().split('T')[0];
+      
       await updateTransactionStatus(paymentId, { 
         payment_status: newStatus,
-        date: localDate
+        date: localISO
       });
       
       // Refresh data after small delay to ensure propagation

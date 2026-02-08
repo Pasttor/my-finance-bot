@@ -102,6 +102,7 @@ async def update_transaction(transaction_id: int, updates: dict = Body(...)):
         try:
             # We prefer standard PATCH now to handle multiple field updates (status + date)
             # merging logic
+            print(f"[DEBUG] Final updates payload: {updates}", file=sys.stderr)
             result = await supabase.update_transaction(transaction_id, TransactionUpdate(**updates))
             if result:
                 print(f"[DEBUG] Update successful: {result}", file=sys.stderr)
