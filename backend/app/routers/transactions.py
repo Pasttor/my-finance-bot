@@ -88,11 +88,15 @@ async def update_transaction(transaction_id: int, updates: dict = Body(...)):
     # Check for payment_status updates explicitly
     if 'payment_status' in updates:
         status = updates['payment_status']
+        print(f"[DEBUG] Updating transaction {transaction_id} status to {status}", file=sys.stderr)
         
-        # If marking as Paid, update the date to today so it appears in recent activity
+        # If marking as Paid, update the date to today (or provided date)
         if status == 'pagado':
-            updates['date'] = date.today().isoformat()
-            # Also update in the RPC params if we use RPC, but simple PATCH is easier if we mix fields
+            if 'date' not in updates:
+                updates['date'] = date.today().isoformat()
+                print(f"[DEBUG] Status is pagado. Defaulting date to server today: {updates['date']}", file=sys.stderr)
+            else:
+                print(f"[DEBUG] Status is pagado. Using provided date: {updates['date']}", file=sys.stderr)
             
         # Use RPC for reliable status updates if available, otherwise PATCH
         try:
@@ -100,9 +104,10 @@ async def update_transaction(transaction_id: int, updates: dict = Body(...)):
             # merging logic
             result = await supabase.update_transaction(transaction_id, TransactionUpdate(**updates))
             if result:
+                print(f"[DEBUG] Update successful: {result}", file=sys.stderr)
                 return result
         except Exception as e:
-            print(f"Update Error: {e}")
+            print(f"Update Error: {e}", file=sys.stderr)
             pass
 
     # Fallback to standard PATCH mechanism if RPC wasn't used or failed

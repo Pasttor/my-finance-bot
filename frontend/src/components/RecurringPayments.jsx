@@ -85,8 +85,13 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
     );
 
     try {
-      // Use backend API to ensure date update logic runs
-      await updateTransactionStatus(paymentId, { payment_status: newStatus });
+      // Use backend API to ensure date update log runs
+      // Send local date to avoid server timezone issues (UTC vs Local)
+      const localDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format
+      await updateTransactionStatus(paymentId, { 
+        payment_status: newStatus,
+        date: localDate
+      });
       
       // Refresh data after small delay to ensure propagation
       if (onStatusChange) {
