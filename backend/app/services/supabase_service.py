@@ -284,7 +284,16 @@ class SupabaseService:
             elif tx_type == "inversion":
                 summary["total_investments"] += amount
             else:
-                summary["total_expenses"] += amount
+                # Only count paid expenses
+                status = tx.get("payment_status", "pendiente")
+                if status == "pagado":
+                    summary["total_expenses"] += amount
+
+            # Skip pending expenses for tags/categories too
+            if tx_type == "gasto":
+                status = tx.get("payment_status", "pendiente")
+                if status != "pagado":
+                    continue
             
             summary["by_tag"][tag] = summary["by_tag"].get(tag, Decimal("0")) + amount
             summary["by_category"][category] = summary["by_category"].get(category, Decimal("0")) + amount

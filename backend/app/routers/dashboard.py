@@ -27,17 +27,28 @@ async def get_summary(
     # Calculate date range
     today = date.today()
     start_date = None
-    end_date = today
+    end_date = today # Default for 'all' or others
     
     if period == "day":
         start_date = today
+        end_date = today
     elif period == "week":
         start_date = today - timedelta(days=7)
+        end_date = today
     elif period == "month":
         start_date = today.replace(day=1)
+        # End of month for month view
+        if today.month == 12:
+            end_date = today.replace(year=today.year+1, month=1, day=1) - timedelta(days=1)
+        else:
+            end_date = today.replace(month=today.month+1, day=1) - timedelta(days=1)
     elif period == "year":
         start_date = today.replace(month=1, day=1)
-    # 'all' leaves start_date as None
+        end_date = today.replace(month=12, day=31)
+    # 'all' start_date is None, end_date stays today? Or None?
+    # If period 'all', usually we want everything. But let's stick to existing logic for 'all' (None)
+    if period == "all":
+        end_date = None
     
     summary = await supabase.get_transactions_summary(
         start_date=start_date,
