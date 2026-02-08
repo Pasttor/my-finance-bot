@@ -391,7 +391,8 @@ async def get_recent_activity(
         limit=limit,
         start_date=start_date,
         end_date=end_date,
-        payment_status="pagado"
+        payment_status="pagado",
+        include_income=True
     )
     
     return {
