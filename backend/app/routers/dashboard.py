@@ -390,7 +390,8 @@ async def get_recent_activity(
     transactions = await supabase.get_transactions(
         limit=limit,
         start_date=start_date,
-        end_date=end_date
+        end_date=end_date,
+        payment_status="pagado"
     )
     
     return {

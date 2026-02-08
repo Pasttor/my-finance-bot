@@ -214,6 +214,7 @@ class SupabaseService:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         transaction_type: Optional[str] = None,
+        payment_status: Optional[str] = None,
     ) -> list[dict]:
         """Get transactions with optional filters."""
         filters = []
@@ -227,6 +228,8 @@ class SupabaseService:
             filters.append(f"date=lte.{end_date}")
         if transaction_type:
             filters.append(f"type=eq.{transaction_type}")
+        if payment_status:
+           filters.append(f"payment_status=eq.{payment_status}")
         
         query = "&".join(filters) if filters else ""
         # Order by date descending (primary) to show updated/effective dates first, then created_at (secondary)
