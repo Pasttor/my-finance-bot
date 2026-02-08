@@ -4,6 +4,7 @@ CRUD operations for financial transactions.
 """
 from datetime import date
 from typing import Optional
+import sys
 
 from fastapi import APIRouter, HTTPException, Query, Body
 
@@ -21,6 +22,7 @@ async def list_transactions(
     tag: Optional[str] = Query(default=None, description="Filter by project tag"),
     category: Optional[str] = Query(default=None, description="Filter by category"),
     type: Optional[str] = Query(default=None, description="Filter by transaction type"),
+    payment_status: Optional[str] = Query(default=None, description="Filter by payment status"),
     start_date: Optional[date] = Query(default=None, description="Start date filter"),
     end_date: Optional[date] = Query(default=None, description="End date filter"),
 ):
@@ -38,6 +40,7 @@ async def list_transactions(
         start_date=start_date,
         end_date=end_date,
         transaction_type=type,
+        payment_status=payment_status,
     )
     
     return {

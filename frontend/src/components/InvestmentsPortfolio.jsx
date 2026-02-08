@@ -44,93 +44,11 @@ const LOGO_URLS = {
   'ARB': 'https://cryptologos.cc/logos/arbitrum-arb-logo.png?v=035'
 };
 
-export default function InvestmentsPortfolio() {
-  const [prices, setPrices] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+export default function InvestmentsPortfolio({ data: portfolioData = [], lastUpdated, loading, error }) {
   const [sortConfig, setSortConfig] = useState({ key: 'value', direction: 'desc' });
 
-  const fetchPrices = async () => {
-    try {
-      const response = await getCryptoPrices();
-      if (response.data && response.data.data) {
-        setPrices(response.data.data);
-        setLastUpdated(new Date());
-        setError(null);
-      }
-    } catch (err) {
-      console.error("Error fetching crypto prices:", err);
-      // Don't clear old prices on error, just show stale data or error indicator
-      setError("Error updating prices");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 60000); // Update every 60s
-    return () => clearInterval(interval);
-  }, []);
-
-  // Compute portfolio data
-  const rawPortfolioData = CRYPTO_HOLDINGS.map(holding => {
-    const id = SYMBOL_TO_ID[holding.symbol];
-    const priceData = prices[id] || {};
-    const currentPrice = priceData.usd || 0;
-    const priceChange = priceData.usd_24h_change || 0;
-    
-    // Fallback/Loading state for calculations
-    if (currentPrice === 0) {
-      return {
-        ...holding,
-        price: 0,
-        priceChange: 0,
-        value: 0,
-        profit: 0,
-        profitPercent: 0,
-        logoUrl: LOGO_URLS[holding.symbol]
-      };
-    }
-
-    const value = holding.amount * currentPrice;
-    const initialInvestment = holding.amount * holding.avgBuyPrice;
-    
-    // Profit = (Value - Cost) + Realized
-    const profit = (value - initialInvestment) + (holding.realizedProfit || 0);
-    
-    // Percent = Profit / Cost. 
-    const profitPercent = initialInvestment > 0 ? (profit / initialInvestment) * 100 : 0;
-
-    return {
-      ...holding,
-      price: currentPrice,
-      priceChange,
-      value,
-      profit,
-      profitPercent,
-      logoUrl: LOGO_URLS[holding.symbol]
-    };
-  });
-
-  // Calculate totals
-  const totalValue = rawPortfolioData.reduce((acc, curr) => acc + curr.value, 0);
-  const totalInvestment = rawPortfolioData.reduce((acc, curr) => acc + (curr.amount * curr.avgBuyPrice), 0);
-  const totalProfit = rawPortfolioData.reduce((acc, curr) => acc + curr.profit, 0);
-  const totalProfitPercent = totalInvestment > 0 ? (totalProfit / totalInvestment) * 100 : 0;
-
-  // Sorting Logic
-  const handleSort = (key) => {
-    setSortConfig((current) => {
-      if (current.key === key) {
-        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
-      }
-      return { key, direction: 'desc' }; // Default to desc for numbers
-    });
-  };
-
-  const sortedPortfolioData = [...rawPortfolioData].sort((a, b) => {
+  // Compute portfolio data handled by parent hook now
+  const sortedPortfolioData = [...portfolioData].sort((a, b) => {
     if (!sortConfig.key) return 0;
     
     // Handle 0 values or potential undefined just in case
@@ -141,6 +59,12 @@ export default function InvestmentsPortfolio() {
     if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
     return 0;
   });
+
+  const totalValue = portfolioData.reduce((acc, curr) => acc + curr.value, 0);
+  const totalProfit = portfolioData.reduce((acc, curr) => acc + curr.profit, 0);
+  const totalInvestment = portfolioData.reduce((acc, curr) => acc + (curr.amount * curr.avgBuyPrice), 0);
+  const totalProfitPercent = totalInvestment > 0 ? (totalProfit / totalInvestment) * 100 : 0;
+
 
   const SortIcon = ({ columnKey }) => {
     if (sortConfig.key !== columnKey) return <ArrowUpDown className="w-3 h-3 ml-1 text-gray-500" />; // More visible

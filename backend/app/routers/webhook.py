@@ -134,6 +134,7 @@ async def _process_text_message(
         tag=parsed.tag,
         account_source=parsed.account_source,
         is_recurring=parsed.is_recurring,
+        payment_status=parsed.payment_status,
         raw_message_id=message_id,
     )
     

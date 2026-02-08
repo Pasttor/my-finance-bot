@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useCryptoPortfolio } from '../hooks/useCryptoPortfolio';
 import { Wallet, TrendingUp, TrendingDown, RefreshCw, MessageCircle, PiggyBank } from 'lucide-react';
 
 import StatCard from '../components/StatCard';
@@ -70,6 +71,8 @@ export default function Dashboard() {
     
     return total;
   };
+
+
 
   // Update savings every 12 hours
   useEffect(() => {
@@ -147,6 +150,16 @@ export default function Dashboard() {
     calculateSavings(); // Update savings on manual refresh
     fetchAllData(false);
   };
+
+  // Crypto Data Hook
+  const { 
+    portfolioData: cryptoPortfolio, 
+    totalValue: cryptoTotal, 
+    totalProfit: cryptoProfit, 
+    totalProfitPercent: cryptoPercent,
+    loading: cryptoLoading,
+    lastUpdated: cryptoLastUpdated
+  } = useCryptoPortfolio();
 
   const handleMonthChange = async (month, year) => {
     try {
@@ -251,11 +264,11 @@ export default function Dashboard() {
         />
         <StatCard
           title="Inversiones"
-          value={233.78}
+          value={cryptoTotal}
           type="investments"
           icon={TrendingUp}
-          loading={loading}
-          subtitle="24h: -$12.81 ▼ 5.19%"
+          loading={cryptoLoading}
+          subtitle={`24h: ${cryptoProfit >= 0 ? '+' : ''}$${Math.abs(cryptoProfit).toFixed(2)} ${cryptoProfit >= 0 ? '▲' : '▼'} ${Math.abs(cryptoPercent).toFixed(2)}%`}
         />
         <StatCard
           title="Ahorros"
@@ -291,20 +304,24 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Category Distribution and Investments Row */}
+      {/* Pending Payments and Investments Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="h-[600px]">
-          <CategoryDistribution data={categoryDistribution} loading={loading} />
+          <PendingPayments loading={loading} onStatusChange={handleRefresh} />
         </div>
         <div className="h-[600px]">
-           <InvestmentsPortfolio />
+           <InvestmentsPortfolio 
+              data={cryptoPortfolio} 
+              lastUpdated={cryptoLastUpdated} 
+              loading={cryptoLoading}
+           />
         </div>
       </div>
 
-      {/* Pending Payments Row */}
+      {/* Category Distribution Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="h-[400px]">
-          <PendingPayments loading={loading} />
+          <CategoryDistribution data={categoryDistribution} loading={loading} />
         </div>
       </div>
 

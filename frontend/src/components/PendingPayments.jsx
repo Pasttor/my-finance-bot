@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CreditCard, ChevronDown } from 'lucide-react';
-import { getDueDates, updateDueDateStatus } from '../services/api';
+import { getTransactions, updateTransactionStatus } from '../services/api';
 
 /**
  * Pending Payments Panel Component
- * Displays pending payments similar to Recurring Payments
+ * Displays pending transactions (manual or recurring)
  */
-export default function PendingPayments({ loading: parentLoading }) {
+export default function PendingPayments({ loading: parentLoading, onStatusChange }) {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,8 +18,8 @@ export default function PendingPayments({ loading: parentLoading }) {
 
   // Status configuration
   const statusConfig = {
-    pendiente: { label: 'Pendiente', color: '#FCD34D', bg: 'rgba(252, 211, 77, 0.2)' },
-    pagado: { label: 'Pagado', color: '#11FB1C', bg: 'rgba(17, 251, 28, 0.2)' },
+    pendiente: { label: 'Por Cobrar', color: '#FCD34D', bg: 'rgba(252, 211, 77, 0.2)' },
+    pagado: { label: 'Cobrado', color: '#11FB1C', bg: 'rgba(17, 251, 28, 0.2)' },
     vencido: { label: 'Vencido', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.2)' }
   };
 
@@ -30,18 +30,30 @@ export default function PendingPayments({ loading: parentLoading }) {
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      const response = await getDueDates({ status: 'pendiente' }); // Fetch pending by default? Or all?
-      // Check if response has data property (standard axios response)
+      // Fetch ONLY client receivables (Cobros de Clientes from WhatsApp)
+      // Filter by category='Proyectos' to distinguish from general income
+      // This is INDEPENDENT from Pagos Recurrentes (recurring expenses)
+      const response = await getTransactions({ 
+        type: 'ingreso',
+        category: 'Proyectos' // Only client project receivables
+      });
       const data = response.data.data || [];
       
-      const formatted = data.map(item => ({
-        id: item.id,
-        name: item.description || 'Sin nombre',
-        amount: parseFloat(item.amount),
-        dueDate: item.due_date,
-        category: item.category || 'Otros',
-        status: item.status || 'pendiente'
-      }));
+      const formatted = data.map(item => {
+        // Format date to "DD de MMMM" (e.g. "31 de marzo")
+        const dateObj = new Date(item.date + 'T00:00:00'); 
+        const day = dateObj.getDate();
+        const month = dateObj.toLocaleString('es-MX', { month: 'long' });
+        
+        return {
+          id: item.id,
+          name: item.description || 'Sin nombre',
+          amount: parseFloat(item.amount),
+          dueDate: `${day} de ${month}`, 
+          category: item.category || 'Otros',
+          status: item.payment_status || 'pendiente'
+        };
+      });
       
       setPayments(formatted);
     } catch (err) {
@@ -89,16 +101,20 @@ export default function PendingPayments({ loading: parentLoading }) {
       setPayments(prev => prev.map(p => 
         p.id === id ? { ...p, status: newStatus } : p
       ));
-
-      await updateDueDateStatus(id, newStatus);
       
-      // Refresh to ensure sync (optional)
-      // fetchPayments(); 
+      await updateTransactionStatus(id, { payment_status: newStatus });
+      
+      // Refresh local list
+      fetchPayments();
+      
+      // Trigger dashboard refresh to update summary stats & recent activity
+      if (onStatusChange) {
+        onStatusChange();
+      }
     } catch (err) {
       console.error('Error updating status:', err);
       // Revert on error
       fetchPayments();
-      // Show error notification?
     }
   };
 
@@ -119,7 +135,7 @@ export default function PendingPayments({ loading: parentLoading }) {
     <div className="glass-card p-6 rounded-2xl h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
-        <h3 className="text-xl font-semibold text-white">Pagos Pendientes</h3>
+        <h3 className="text-xl font-semibold text-white">Cobros Pendientes</h3>
         <span className="bg-white/10 text-gray-400 text-sm px-3 py-1 rounded-lg">
           {payments.length}
         </span>
@@ -127,7 +143,13 @@ export default function PendingPayments({ loading: parentLoading }) {
 
       {/* Payments List */}
       <div className="space-y-1 flex-grow overflow-y-auto custom-scrollbar pr-2 -mr-2">
-        {payments.map((payment, index) => {
+        {payments.length === 0 ? (
+           <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <CreditCard className="w-12 h-12 mb-2 opacity-20" />
+              <p>No hay cobros pendientes</p>
+           </div>
+        ) : (
+           payments.map((payment, index) => {
           const currentStatus = statusConfig[payment.status] || statusConfig.pendiente;
           
           return (
@@ -176,7 +198,7 @@ export default function PendingPayments({ loading: parentLoading }) {
               <div className="mx-4 border-b border-white/10"></div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Total Footer */}

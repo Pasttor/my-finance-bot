@@ -41,7 +41,8 @@ export default function StatCard({ title, value, type, change, icon: Icon, loadi
           iconBg: 'rgba(255, 255, 255, 0.1)',
           iconColor: '#ffffff',
           valueColor: '#ffffff',
-          textShadow: '0 0 20px rgba(255, 8, 8, 0.6)',
+          textShadow: '0 0 25px rgba(255, 8, 8, 0.8)',
+          subtitleColor: CUSTOM_RED,
         };
       case 'savings':
         return {
@@ -101,7 +102,10 @@ export default function StatCard({ title, value, type, change, icon: Icon, loadi
       </div>
       
       {subtitle && (
-        <div className="text-xs text-red-400 mb-2">
+        <div 
+          className="text-xs mb-2"
+          style={{ color: styles.subtitleColor || '#f87171' }}
+        >
           {subtitle}
         </div>
       )}

@@ -230,16 +230,11 @@ class SupabaseService:
         if transaction_type:
             filters.append(f"type=eq.{transaction_type}")
         
-        # specific logic for Recent Activity: show Pagado OR Income
+        # Filter by payment_status
+        # When include_income=True: show ALL transaction types with matching payment_status
+        # (i.e., show both paid income AND paid expenses in recent activity)
         if payment_status:
-            if include_income:
-                 filters.append(f"or=(payment_status.eq.{payment_status},type.eq.ingreso)")
-            else:
-                 filters.append(f"payment_status=eq.{payment_status}")
-        elif include_income:
-            # If only include_income is True but no payment_status... just filter income?
-            # Likely not used this way, but safe fallback
-            pass
+            filters.append(f"payment_status=eq.{payment_status}")
         
         query = "&".join(filters) if filters else ""
         # Order by date descending (primary) to show updated/effective dates first, then created_at (secondary)
@@ -280,7 +275,10 @@ class SupabaseService:
             category = tx.get("category") or "Sin categoría"
             
             if tx_type == "ingreso":
-                summary["total_income"] += amount
+                # Only count paid income (Cobrado)
+                status = tx.get("payment_status", "pendiente")
+                if status == "pagado":
+                    summary["total_income"] += amount
             elif tx_type == "inversion":
                 summary["total_investments"] += amount
             else:

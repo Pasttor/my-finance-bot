@@ -41,6 +41,7 @@ FORMATO DE SALIDA (JSON estricto):
   "description": "descripción" (para create) o "",
   "category": "categoría" (para create) o "Otros",
   "type": "gasto|ingreso|inversion|suscripcion",
+  "payment_status": "pagado|pendiente",
   "date": "YYYY-MM-DD" o null,
   "tag": "#Asces|#LabCasa|#Personal" o null,
   "account_source": "Efectivo|Tarjeta...",
@@ -165,6 +166,16 @@ class GeminiService:
             tx_type = TransactionType.INGRESO
         elif any(kw in message_lower for kw in expense_keywords):
             tx_type = TransactionType.GASTO
+            
+        # Freelance/Income Heuristic: "Pago pendiente de..." usually means income for a freelancer
+        # if it involves "cliente", "proyecto", "web", "app", "logo", "design"
+        freelance_keywords = ["cliente", "proyecto", "web", "app", "logo", "design", "anticipo", "resto"]
+        if "pendiente" in message_lower and any(kw in message_lower for kw in freelance_keywords):
+             tx_type = TransactionType.INGRESO
+            
+        # Detect payment status
+        pending_keywords = ["pendiente", "debo", "pagar luego", "fiado", "crédito", "por cobrar"]
+        payment_status = "pendiente" if any(kw in message_lower for kw in pending_keywords) else "pagado"
         
         return GeminiParsedTransaction(
             amount=amount,
@@ -175,6 +186,7 @@ class GeminiService:
             tag=ProjectTag(tag) if tag else None,
             account_source="Efectivo",
             is_recurring=False,
+            payment_status=payment_status,
         )
     
     async def extract_receipt_data(self, image_bytes: bytes) -> dict:

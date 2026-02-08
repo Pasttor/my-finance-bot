@@ -47,9 +47,11 @@ export default function TransactionList({ transactions, loading, limit = 10 }) {
           <p className="text-sm mt-1">Envía un mensaje a WhatsApp para comenzar</p>
         </div>
       ) : (
-        <div className="space-y-4 overflow-y-auto max-h-[300px] pr-2">
+        <div className="space-y-3 overflow-y-auto max-h-[300px] pr-2">
           {items.map((tx, index) => (
-            <TransactionItem key={tx.id || index} transaction={tx} />
+            <div key={tx.id || index} className="group border-b border-white/5 pb-3 last:border-0 last:pb-0">
+               <TransactionItem transaction={tx} />
+            </div>
           ))}
         </div>
       )}

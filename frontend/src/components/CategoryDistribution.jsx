@@ -238,9 +238,9 @@ export default function CategoryDistribution({ data, loading }) {
         <span className="text-blue-400"><PieChart className="w-5 h-5" /></span> Gastos por Categoría
       </h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center h-full">
         {/* Chart Section */}
-        <div className="h-[250px] relative">
+        <div className="h-[260px] relative">
             {chartData.length === 0 ? (
                 <div className="absolute inset-0 flex items-center justify-center text-gray-500 flex-col gap-2">
                     <span className="text-4xl opacity-20"><PieChart className="w-10 h-10"/></span>
@@ -255,8 +255,8 @@ export default function CategoryDistribution({ data, loading }) {
                         cy="50%"
                         labelLine={false}
                         label={renderCustomLabel}
-                        outerRadius={95}
-                        innerRadius={60}
+                        outerRadius={105}
+                        innerRadius={70}
                         dataKey="total"
                         paddingAngle={2}
                         cornerRadius={4}
@@ -289,11 +289,11 @@ export default function CategoryDistribution({ data, loading }) {
         </div>
 
         {/* Legend/List Section */}
-        <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
+        <div className="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar pr-2">
           {chartData.map((item, index) => (
-            <div key={index} className="flex items-center justify-between group p-2 hover:bg-white/5 rounded-lg transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shadow-sm relative overflow-hidden">
+            <div key={index} className="flex items-center justify-between group p-1.5 hover:bg-white/5 rounded-lg transition-colors">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shadow-sm relative overflow-hidden flex-shrink-0">
                   <div 
                     className="absolute inset-0 opacity-20"
                     style={{ backgroundColor: item.resolvedColor }}
@@ -302,28 +302,28 @@ export default function CategoryDistribution({ data, loading }) {
                     {getCategoryIconComponent(item.category)}
                   </span>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white group-hover:text-blue-200 transition-colors">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-white group-hover:text-blue-200 transition-colors truncate">
                     {item.category}
                   </p>
                   <div className="flex items-center gap-2">
-                     <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                     <div className="w-12 h-1 bg-gray-700 rounded-full overflow-hidden">
                         <div 
                             className="h-full rounded-full" 
                             style={{ width: `${item.percentage}%`, backgroundColor: item.resolvedColor }}
                         ></div>
                      </div>
-                     <span className="text-xs text-gray-400">{item.percentage}%</span>
+                     <span className="text-[10px] text-gray-400">{item.percentage}%</span>
                   </div>
                 </div>
               </div>
               
-              <div className="text-right">
-                <p className="text-sm font-semibold text-white">
+              <div className="text-right flex-shrink-0 ml-2">
+                <p className="text-xs font-semibold text-white">
                   {formatCurrency(item.total)}
                 </p>
                 {item.budget_limit && (
-                   <p className={`text-xs ${item.budget_used_percent > 100 ? 'text-red-400' : 'text-emerald-400'}`}>
+                   <p className={`text-[10px] ${item.budget_used_percent > 100 ? 'text-red-400' : 'text-emerald-400'}`}>
                      {item.budget_used_percent}% pres
                    </p>
                 )}

@@ -104,6 +104,7 @@ class GeminiParsedTransaction(BaseModel):
     tag: Optional[ProjectTag] = None
     account_source: Optional[str] = "Efectivo"
     is_recurring: bool = False
+    payment_status: str = "pendiente"
     
     # Operation fields
     operation: str = Field(default="create", description="create, delete, update")
