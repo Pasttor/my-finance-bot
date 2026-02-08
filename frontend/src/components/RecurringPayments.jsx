@@ -106,7 +106,7 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
       console.error('Error updating status:', error);
       // Rollback on error
       setRecurringPayments(previousPayments);
-      // alert('Error al actualizar: Verifique su conexión');
+      alert('Error al actualizar el estado. Por favor intente de nuevo.');
     }
   };
 

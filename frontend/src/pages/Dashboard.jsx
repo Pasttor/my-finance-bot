@@ -105,7 +105,7 @@ export default function Dashboard() {
         getDistributionByTag(),
         getCalendar(today.getMonth() + 1, today.getFullYear()),
         getSavingsProgress(),
-        getRecentActivity(20, formatDate(startOfMonth), formatDate(today)),
+        getRecentActivity(20, formatDate(startOfMonth)),
         getDistributionByCategory(null, null, null),
       ]);
 
