@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, Wifi, Dumbbell, Monitor, Sparkles, ShoppingBag, ChevronDown } from 'lucide-react';
-import { updateTransactionStatus } from '../services/api';
+import { updateTransactionStatus, updateDueDateStatus } from '../services/api';
 
 /**
  * Recurring Payments Panel Component
@@ -20,9 +20,6 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
         setOpenDropdown(null);
       }
     };
-    // Use mousedown to capture click before other events clear it? 
-    // Actually click is better for buttons, but mousedown covers 'outside'.
-    // Use click instead of mousedown to respect stopPropagation from buttons
     document.addEventListener('click', handleClickOutside);
     window.addEventListener('resize', () => setOpenDropdown(null)); // Close on resize
     window.addEventListener('scroll', () => setOpenDropdown(null), true); // Close on scroll
@@ -43,7 +40,7 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
 
   // Icon mapping based on description keywords
   const getIcon = (description) => {
-    const desc = description.toLowerCase();
+    const desc = (description || '').toLowerCase();
     if (desc.includes('gym')) return Dumbbell;
     if (desc.includes('izzi') || desc.includes('internet') || desc.includes('bait')) return Wifi;
     if (desc.includes('tarjeta')) return CreditCard;
@@ -76,6 +73,10 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
     // 1. Immediately close dropdown
     setOpenDropdown(null);
 
+    // Find the payment to know its type
+    const payment = recurringPayments.find(p => p.id === paymentId);
+    if (!payment) return;
+
     // Store previous state for rollback
     const previousPayments = [...recurringPayments];
 
@@ -85,18 +86,18 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
     );
 
     try {
-      // Use backend API to ensure date update log runs
-      // Send local date to avoid server timezone issues (UTC vs Local)
-      // Use ISO string to ensure YYYY-MM-DD format regardless of locale
-      const localDate = new Date();
-      // Adjust for timezone offset to get "Local" ISO date
-      const offset = localDate.getTimezoneOffset() * 60000;
-      const localISO = new Date(localDate.getTime() - offset).toISOString().split('T')[0];
-      
-      await updateTransactionStatus(paymentId, { 
-        payment_status: newStatus,
-        date: localISO
-      });
+      if (payment.type === 'transaction') {
+        const localDate = new Date();
+        const offset = localDate.getTimezoneOffset() * 60000;
+        const localISO = new Date(localDate.getTime() - offset).toISOString().split('T')[0];
+        
+        await updateTransactionStatus(paymentId, { 
+          payment_status: newStatus,
+          date: localISO
+        });
+      } else if (payment.type === 'due_date') {
+        await updateDueDateStatus(paymentId, newStatus);
+      }
       
       // Refresh data after small delay to ensure propagation
       if (onStatusChange) {
@@ -113,46 +114,50 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
   // Extract recurring payments from calendar data
   useEffect(() => {
     if (data?.days) {
-      const paymentCounts = {};
-      const paymentData = {};
+      const allItems = [];
 
       data.days.forEach(day => {
+        // 1. Process Due Dates (Expected Payments)
+        if (day.due_dates) {
+          day.due_dates.forEach(dd => {
+            allItems.push({
+              id: dd.id,
+              name: dd.concept || dd.description || 'Sin nombre',
+              amount: dd.amount || 0,
+              date: dd.due_date || day.date, // Use due_date or calendar day
+              status: dd.status || 'pendiente',
+              type: 'due_date', // Identify source
+              original: dd
+            });
+          });
+        }
+
+        // 2. Process Recurring Transactions (Already captured/paid?)
         if (day.transactions) {
           day.transactions.forEach(tx => {
             if (tx.is_recurring) {
-              const name = tx.description;
-              if (!paymentCounts[name]) {
-                paymentCounts[name] = 0;
-                paymentData[name] = {
-                  id: tx.id,
-                  name: name,
-                  amount: tx.amount,
-                  date: day.date,
-                  category: tx.category,
-                  status: tx.payment_status || 'pendiente'
-                };
-              }
-              paymentCounts[name]++;
+              allItems.push({
+                id: tx.id,
+                name: tx.description,
+                amount: tx.amount,
+                date: day.date,
+                category: tx.category,
+                status: tx.payment_status || 'pendiente',
+                type: 'transaction', // Identify source
+                original: tx
+              });
             }
           });
         }
       });
 
-      // Build final array with correct frequency
-      const allRecurring = Object.keys(paymentData).map(name => {
-        const count = paymentCounts[name];
-        const isWeekly = name.toLowerCase().includes('semanal') || count >= 4;
-        return {
-          ...paymentData[name],
-          frequency: isWeekly ? `SEMANAL (${count}x)` : 'MENSUAL',
-          count: count,
-          monthlyTotal: isWeekly ? paymentData[name].amount * count : paymentData[name].amount
-        };
+      // Sort by date (asc) to show flow, then by name
+      allItems.sort((a, b) => {
+        if (a.date !== b.date) return new Date(a.date) - new Date(b.date);
+        return a.name.localeCompare(b.name);
       });
 
-      // Sort by monthly total descending
-      allRecurring.sort((a, b) => b.monthlyTotal - a.monthlyTotal);
-      setRecurringPayments(allRecurring);
+      setRecurringPayments(allItems);
     }
   }, [data]);
 
@@ -169,7 +174,7 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
     );
   }
 
-  const totalMonthly = recurringPayments.reduce((sum, p) => sum + (p.monthlyTotal || p.amount), 0);
+  const totalMonthly = recurringPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   return (
     <div className="glass-card p-6 rounded-2xl h-full flex flex-col">
@@ -188,7 +193,7 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
           const currentStatus = statusConfig[payment.status] || statusConfig.pendiente;
           
           return (
-            <div key={payment.id || index}>
+            <div key={`${payment.type}-${payment.id}-${index}`}>
               <div className="flex items-center justify-between py-4 px-2 rounded-lg hover:bg-white/5 transition-colors">
                 <div className="flex items-center gap-4">
                   {/* Icon Circle */}
@@ -199,10 +204,12 @@ export default function RecurringPayments({ data, loading, onStatusChange }) {
                     <IconComponent className="w-5 h-5" style={{ color: currentStatus.color }} />
                   </div>
                   
-                  {/* Name and Frequency */}
+                  {/* Name and Date */}
                   <div>
                     <p className="text-white font-medium">{payment.name}</p>
-                    <p className="text-gray-500 text-sm">{payment.frequency}</p>
+                    <p className="text-gray-500 text-xs">
+                      {payment.date} • {payment.type === 'due_date' ? 'Vencimiento' : 'Transacción'}
+                    </p>
                   </div>
                 </div>
 
